@@ -795,6 +795,34 @@
       "required": false,
       "gate": 4,
       "status": "exists"
+    },
+    {
+      "id": "CI-HEALTH",
+      "file": "docs/templates/CI-HEALTH.md",
+      "status": "template",
+      "gate": 2,
+      "required": true
+    },
+    {
+      "id": "DORA-METRICS-DASHBOARD",
+      "file": "docs/templates/DORA-METRICS-DASHBOARD.md",
+      "status": "template",
+      "gate": 3,
+      "required": false
+    },
+    {
+      "id": "DOC-TEMPLATE-STANDARD",
+      "file": "docs/standards/DOC-TEMPLATE-STANDARD.md",
+      "status": "template",
+      "gate": 1,
+      "required": true
+    },
+    {
+      "id": "PROJECT-DOC-ASSESSMENT",
+      "file": "docs/standards/PROJECT-DOC-ASSESSMENT.md",
+      "status": "template",
+      "gate": 1,
+      "required": true
     }
   ]
 }

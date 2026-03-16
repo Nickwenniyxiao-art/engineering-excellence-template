@@ -1,3 +1,6 @@
+# ⚠️ 建议在 GitHub Settings > Actions 中禁用此工作流，直到CI全绿后再启用
+# ⚠️ 建议频率限制：每24小时内最多触发1次，避免噪音和资源浪费
+
 name: Codex Auto-Fix on Failure
 
 on:
@@ -12,7 +15,7 @@ permissions:
 
 jobs:
   auto-fix:
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    if: ${{ github.event.workflow_run.conclusion == 'failure' && secrets.ENABLE_AUTOFIX == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -24,6 +27,13 @@ jobs:
       FAILED_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
 
     steps:
+      - name: Check ENABLE_AUTOFIX flag
+        run: |
+          if [ "${{ secrets.ENABLE_AUTOFIX }}" != "true" ]; then
+            echo "⏭️ ENABLE_AUTOFIX != true, skipping auto-fix workflow."
+            exit 0
+          fi
+
       # ── 0. Guard: check retry counter ──────────────────────────
       - name: Check retry counter
         id: retry-check
