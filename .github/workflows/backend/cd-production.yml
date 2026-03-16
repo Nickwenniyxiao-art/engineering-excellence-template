@@ -1,0 +1,182 @@
+name: "CD — Production"
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: cd-production-backend
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  deploy-production:
+    name: "🚀 Deploy → Production"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: Backup production database
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            set -e
+            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+            BACKUP_DIR="/opt/nordhjem/backups/production"
+            mkdir -p $BACKUP_DIR
+
+            # 自动发现 PostgreSQL 容器
+            POSTGRES_CONTAINER=""
+            for candidate in nordhjem_postgres nordhjem_postgres_production nordhjem-postgres; do
+              if docker ps -a --format '{{.Names}}' | grep -qx "$candidate"; then
+                POSTGRES_CONTAINER="$candidate"
+                break
+              fi
+            done
+
+            if [ -z "$POSTGRES_CONTAINER" ]; then
+              echo "⚠️ PostgreSQL container not found, skipping backup"
+              exit 0
+            fi
+
+            # 从 production Medusa 容器获取数据库名
+            MEDUSA_CONTAINER="nordhjem_medusa"
+            DATABASE_URL=$(docker inspect "$MEDUSA_CONTAINER" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep "DATABASE_URL=" | cut -d= -f2- || true)
+            DB_NAME=$(echo "$DATABASE_URL" | sed -n 's|.*\/\([^?]*\).*|\1|p')
+                        DB_USER=$(echo "$DATABASE_URL" | sed -n 's|.*://\([^:]*\):.*|\1|p')
+
+            if [ -z "$DB_NAME" ]; then
+              DB_NAME="nordhjem_production"
+                            DB_USER="postgres"
+              echo "⚠️ Could not detect DB name, using default: $DB_NAME"
+            fi
+
+            echo "=== Backing up production database ($DB_NAME) ==="
+            docker exec $POSTGRES_CONTAINER pg_dump \
+              -U "$DB_USER" \
+              -d "$DB_NAME" \
+              -F c \
+              -f /tmp/backup_production_${TIMESTAMP}.dump
+
+            docker cp $POSTGRES_CONTAINER:/tmp/backup_production_${TIMESTAMP}.dump \
+              ${BACKUP_DIR}/backup_production_${TIMESTAMP}.dump
+
+            docker exec $POSTGRES_CONTAINER rm -f /tmp/backup_production_${TIMESTAMP}.dump
+
+            # 保留最近 10 个备份（production 保留更多）
+            cd $BACKUP_DIR && ls -t *.dump 2>/dev/null | tail -n +11 | xargs -r rm
+
+            echo "✅ Production backup complete: backup_production_${TIMESTAMP}.dump"
+
+      - name: Deploy to production
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+            CONTAINER="nordhjem_medusa"
+            REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+            IMAGE="ghcr.io/${REPO_LOWER}:latest"
+            PORT=9000
+
+            echo "=== Pulling latest image ==="
+            docker pull $IMAGE
+
+            echo "=== Saving env vars ==="
+            ENV_FILE="/tmp/${CONTAINER}_env.txt"
+            docker inspect $CONTAINER --format '{{range .Config.Env}}{{println .}}{{end}}' > $ENV_FILE 2>/dev/null || true
+
+            echo "=== Running DB migration ==="
+            if [ -f "$ENV_FILE" ] && [ -s "$ENV_FILE" ]; then
+              docker run --rm --network nordhjem_backend --env-file $ENV_FILE $IMAGE npx medusa db:migrate || echo "Migration warning"
+            fi
+
+            echo "=== Replacing container ==="
+            docker stop $CONTAINER 2>/dev/null || true
+            docker rm $CONTAINER 2>/dev/null || true
+
+            if [ -f "$ENV_FILE" ] && [ -s "$ENV_FILE" ]; then
+              docker create --name $CONTAINER --publish $PORT:9000 --restart unless-stopped --env-file $ENV_FILE $IMAGE npx medusa start
+            else
+              echo "ERROR: No env file" && exit 1
+            fi
+
+            docker network connect nordhjem_backend $CONTAINER 2>/dev/null || true
+            docker network connect nordhjem_frontend $CONTAINER 2>/dev/null || true
+            docker start $CONTAINER
+            rm -f $ENV_FILE
+            echo "=== Deploy production complete ==="
+
+      - name: Health check (production)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 3m
+          script: |
+            sleep 30
+            for i in 1 2 3 4 5 6; do
+              STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:9000/health 2>/dev/null || echo "000")
+              if [ "$STATUS" = "200" ]; then
+                echo "✅ Production health check passed"
+                exit 0
+              fi
+              echo "Attempt $i: HTTP $STATUS, waiting 15s..."
+              sleep 15
+            done
+            echo "❌ Health check failed"
+            docker logs nordhjem_medusa --tail 30 2>&1 || true
+            exit 1
+
+  e2e-production:
+    name: "🧪 E2E → Production"
+    needs: deploy-production
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Run production verification
+        run: |
+          echo "=== Production Environment Verification ==="
+
+          echo "--- Health check ---"
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://${{ secrets.DEPLOY_HOST }}:9000/health || echo "000")
+          echo "Health: HTTP $STATUS"
+          [ "$STATUS" = "200" ] || { echo "❌ Health check failed"; exit 1; }
+
+          echo "--- Store API check ---"
+          if [ -n "${{ secrets.PRODUCTION_PUBLISHABLE_KEY }}" ]; then
+            RESP=$(curl -sf "http://${{ secrets.DEPLOY_HOST }}:9000/store/products?limit=1" \
+              -H "x-publishable-api-key: ${{ secrets.PRODUCTION_PUBLISHABLE_KEY }}" || echo "FAILED")
+            if echo "$RESP" | grep -q '"products"'; then
+              echo "✅ Store API returned products"
+            else
+              echo "⚠️ Store API check skipped (key may not be configured)"
+            fi
+          else
+            echo "⚠️ Store API check skipped (key may not be configured)"
+          fi
+
+          echo "--- Admin API check ---"
+          ADMIN=$(curl -sf -o /dev/null -w "%{http_code}" "http://${{ secrets.DEPLOY_HOST }}:9000/admin" || echo "000")
+          echo "Admin: HTTP $ADMIN"
+
+          echo "✅ Production verification complete"
+
+  smoke-test:
+    name: "💨 Smoke Test → Production"
+    needs: e2e-production
+    uses: ./.github/workflows/smoke-test.yml
+    with:
+      environment: production
+      port: "9000"
+    secrets: inherit

@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, staging, main]
+  push:
+    branches: [develop, staging, main]
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: "pk_ci_placeholder"
+      NEXT_PUBLIC_MEDUSA_BACKEND_URL: "http://localhost:9000"
+      NEXT_PUBLIC_BASE_URL: "http://localhost:8000"
+      NEXT_PUBLIC_DEFAULT_REGION: "dk"
+      YARN_ENABLE_IMMUTABLE_INSTALLS: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Enable Corepack (Yarn 4)
+        run: corepack enable
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-yarn-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: yarn build

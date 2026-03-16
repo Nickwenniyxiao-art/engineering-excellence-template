@@ -1,0 +1,110 @@
+name: "Task 技术任务"
+description: "CTO 拆解的技术任务（给 Codex 执行）"
+title: "[Task]: "
+labels: ["type: task", "status: needs review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Task 模板（升级版）
+        该模板用于可直接执行的工程任务，请尽量提供可落地的文件范围与验收标准。
+
+  - type: input
+    id: roadmap_ref
+    attributes:
+      label: "ROADMAP Ref"
+      description: "关联的 ROADMAP 目标 ID（格式: R-Px-xx）。紧急修复填 HOTFIX，基础设施维护填 INFRA"
+      placeholder: "R-P1-01"
+    validations:
+      required: true
+
+  - type: textarea
+    id: background
+    attributes:
+      label: "背景/动机"
+      description: "为什么要做这个任务？解决什么问题？"
+      placeholder: "当前系统存在 xxx 问题，导致 yyy..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: objective
+    attributes:
+      label: 任务目标
+      description: 简洁描述要做什么
+      placeholder: "统一 Issue 模板字段，确保通过 CI Gate..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: 文件范围（必填）
+      description: 明确需要修改/新增/禁止修改的路径
+      placeholder: |
+        **需要修改**：
+        - .github/ISSUE_TEMPLATE/feature.yml
+        - .github/ISSUE_TEMPLATE/task.yml
+
+        **需要新增**：
+        - （如无请填 无）
+
+        **禁止修改**：
+        - .github/workflows/
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: 验收标准（必填）
+      placeholder: |
+        - [ ] 相关模板字段完整可用
+        - [ ] 与 CI gate 规则一致（ROADMAP / 背景动机 / 标签等）
+        - [ ] 文档或说明已同步（如适用）
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: 实现指引
+      description: 具体的文件、步骤说明（Codex 读取后可直接执行）
+      placeholder: |
+        1. 更新模板字段
+        2. 补充占位提示
+        3. 本地校验 YAML 语法
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: 验证方式
+      description: 提供本地检查命令或手动验证步骤
+      placeholder: |
+        - `python -c "import yaml,sys;yaml.safe_load(open('.github/ISSUE_TEMPLATE/task.yml'))"`
+        - 新建 Issue 时字段展示正常
+    validations:
+      required: true
+
+  - type: input
+    id: parent_issue
+    attributes:
+      label: 关联 Feature/Bug Issue
+      description: "如：#123"
+      placeholder: "#123"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 优先级
+      options:
+        - "P0 — 紧急"
+        - "P1 — 高"
+        - "P2 — 中"
+        - "P3 — 低"
+    validations:
+      required: true
