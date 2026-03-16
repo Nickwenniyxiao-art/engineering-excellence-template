@@ -24,11 +24,13 @@ jobs:
           script: |
             set -e
             TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-            BACKUP_DIR="/opt/nordhjem/backups/scheduled"
-            mkdir -p $BACKUP_DIR
+            # ⚠️ 请按项目实际目录修改
+            BACKUP_DIR="/opt/<project>/backups/scheduled"
+            mkdir -p "$BACKUP_DIR"
 
+            # ⚠️ 请按项目实际容器命名规则调整候选列表
             POSTGRES_CONTAINER=""
-            for candidate in nordhjem_postgres nordhjem_postgres_production nordhjem-postgres; do
+            for candidate in <project>_postgres <project>_postgres_production <project>-postgres postgres; do
               if docker ps -a --format '{{.Names}}' | grep -qx "$candidate"; then
                 POSTGRES_CONTAINER="$candidate"
                 break
@@ -36,35 +38,38 @@ jobs:
             done
 
             if [ -z "$POSTGRES_CONTAINER" ]; then
-              echo "PostgreSQL container not found, skipping backup"
+              echo "PostgreSQL container not found, skipping backup gracefully"
               exit 0
             fi
 
-            MEDUSA_CONTAINER="nordhjem_medusa"
-            DATABASE_URL=$(docker inspect "$MEDUSA_CONTAINER" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep "DATABASE_URL=" | cut -d= -f2- || true)
+            # ⚠️ 请按项目实际应用容器命名调整
+            APP_CONTAINER="<project>_medusa"
+            DATABASE_URL=$(docker inspect "$APP_CONTAINER" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep "DATABASE_URL=" | cut -d= -f2- || true)
             DB_NAME=$(echo "$DATABASE_URL" | sed -n 's|.*\/\([^?]*\).*|\1|p')
             DB_USER=$(echo "$DATABASE_URL" | sed -n 's|.*://\([^:]*\):.*|\1|p')
 
             if [ -z "$DB_NAME" ]; then
-              DB_NAME="nordhjem_production"
+              DB_NAME="<project>_production"
               DB_USER="postgres"
             fi
 
-            echo "=== Creating scheduled backup ($DB_NAME) ==="
-            docker exec $POSTGRES_CONTAINER pg_dump \
+            echo "=== Creating scheduled backup ($DB_NAME) from $POSTGRES_CONTAINER ==="
+            docker exec "$POSTGRES_CONTAINER" pg_dump \
               -U "$DB_USER" \
               -d "$DB_NAME" \
               -F c \
-              -f /tmp/backup_scheduled_${TIMESTAMP}.dump
+              -f "/tmp/backup_scheduled_${TIMESTAMP}.dump"
 
-            docker cp $POSTGRES_CONTAINER:/tmp/backup_scheduled_${TIMESTAMP}.dump \
-              ${BACKUP_DIR}/backup_scheduled_${TIMESTAMP}.dump
+            docker cp "$POSTGRES_CONTAINER:/tmp/backup_scheduled_${TIMESTAMP}.dump" \
+              "$BACKUP_DIR/backup_scheduled_${TIMESTAMP}.dump"
 
-            docker exec $POSTGRES_CONTAINER rm -f /tmp/backup_scheduled_${TIMESTAMP}.dump
+            docker exec "$POSTGRES_CONTAINER" rm -f "/tmp/backup_scheduled_${TIMESTAMP}.dump"
 
-            cd $BACKUP_DIR && ls -t *.dump 2>/dev/null | tail -n +11 | xargs -r rm
+            # 保留最近 10 个备份
+            cd "$BACKUP_DIR"
+            ls -t *.dump 2>/dev/null | tail -n +11 | xargs -r rm -f
 
-            DUMP_SIZE=$(stat -c%s "${BACKUP_DIR}/backup_scheduled_${TIMESTAMP}.dump" 2>/dev/null || echo "unknown")
+            DUMP_SIZE=$(stat -c%s "$BACKUP_DIR/backup_scheduled_${TIMESTAMP}.dump" 2>/dev/null || echo "unknown")
             echo "Backup complete: backup_scheduled_${TIMESTAMP}.dump (${DUMP_SIZE} bytes)"
 
   report-failure:
@@ -86,19 +91,20 @@ jobs:
               labels: 'db-backup-failure',
               state: 'open'
             });
+
             if (existing.data.length > 0) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: existing.data[0].number,
-                body: 'Database backup failed again on ' + date + '. [Workflow Run](' + runUrl + ')'
+                body: `Database backup failed again on ${date}. [Workflow Run](${runUrl})`
               });
             } else {
               await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                title: '[DB Backup] Failed on ' + date,
-                body: '## Database Backup Failure\n\nDate: ' + date + '\n\n[View workflow run](' + runUrl + ')\n\nPlease investigate.',
+                title: `[DB Backup] Failed on ${date}`,
+                body: `## Database Backup Failure\n\nDate: ${date}\n\n[View workflow run](${runUrl})\n\nPlease investigate.`,
                 labels: ['type: bug', 'db-backup-failure']
               });
             }

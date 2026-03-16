@@ -1,7 +1,7 @@
 {
   "library_version": "1.1.0",
-  "last_updated": "2026-03-15",
-  "total_documents": 110,
+  "last_updated": "2026-03-16",
+  "total_documents": 114,
   "categories": [
     "01-initiation",
     "02-requirements",
@@ -2836,6 +2836,105 @@
         "负责人"
       ],
       "description": "定义金融交易清结算流程、对账机制与风险控制。"
+    },
+    {
+      "id": "CI-HEALTH",
+      "name": "CI/CD 健康度标准",
+      "name_en": "CI/CD Health Standard",
+      "filename": "CI-HEALTH.md",
+      "category": "06-deployment",
+      "gate": 2,
+      "applicable_to": [
+        "all"
+      ],
+      "default_required": true,
+      "required_sections": [
+        "## 概述",
+        "## 工作流分级标准",
+        "## 工作流清单",
+        "## 绿率目标",
+        "## 红叉处理流程"
+      ],
+      "required_metadata": [
+        "项目名称",
+        "创建日期",
+        "状态",
+        "负责人"
+      ],
+      "description": "定义工作流分级、SLA 与绿率目标的标准模板。"
+    },
+    {
+      "id": "DORA-METRICS-DASHBOARD",
+      "name": "DORA 指标仪表板",
+      "name_en": "DORA Metrics Dashboard",
+      "filename": "DORA-METRICS-DASHBOARD.md",
+      "category": "09-governance",
+      "gate": 3,
+      "applicable_to": [
+        "all"
+      ],
+      "default_required": false,
+      "required_sections": [
+        "## 概述",
+        "## 指标定义",
+        "## 数据采集周期"
+      ],
+      "required_metadata": [
+        "项目名称",
+        "创建日期",
+        "状态",
+        "负责人"
+      ],
+      "description": "追踪部署频率、前置时间、变更失败率与恢复时间。"
+    },
+    {
+      "id": "DOC-TEMPLATE-STANDARD",
+      "name": "文档模板标准",
+      "name_en": "Document Template Standard",
+      "filename": "DOC-TEMPLATE-STANDARD.md",
+      "category": "09-governance",
+      "gate": 1,
+      "applicable_to": [
+        "all"
+      ],
+      "default_required": true,
+      "required_sections": [
+        "## 概述",
+        "## 通用规则",
+        "## 元数据头部",
+        "## 模板使用指南"
+      ],
+      "required_metadata": [
+        "项目名称",
+        "创建日期",
+        "状态",
+        "负责人"
+      ],
+      "description": "统一文档模板结构与元数据规范。"
+    },
+    {
+      "id": "PROJECT-DOC-ASSESSMENT",
+      "name": "项目文档评估",
+      "name_en": "Project Document Assessment",
+      "filename": "PROJECT-DOC-ASSESSMENT.md",
+      "category": "09-governance",
+      "gate": 1,
+      "applicable_to": [
+        "all"
+      ],
+      "default_required": true,
+      "required_sections": [
+        "## 评估概述",
+        "## 项目基本信息",
+        "## 文档清单"
+      ],
+      "required_metadata": [
+        "项目名称",
+        "创建日期",
+        "状态",
+        "负责人"
+      ],
+      "description": "用于新项目文档准备度评估与缺口识别。"
     }
   ]
 }

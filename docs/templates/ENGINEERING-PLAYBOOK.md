@@ -5320,3 +5320,57 @@ cd nextjs-starter-medusa && yarn dev
 *文档版本：v1.0 | 最后更新：2026-03-13 | 作者：CTO*  
 *本文档是 NordHjem Engineering Playbook 的第 9~12 章及附录部分。*  
 *前半部分（第 1~8 章）详见 `docs/ENGINEERING-PLAYBOOK.md`。*
+
+---
+
+## 第14章：CI/CD健康度管理
+
+### 14.1 工作流分级（Critical / Standard / Advisory）
+
+为避免“所有红叉都同等紧急”导致治理失焦，CI/CD 工作流按影响面分级：
+
+- **Critical**：影响合并、发布、生产可用性的核心工作流，必须保持全绿。
+- **Standard**：质量与安全类保障工作流，失败需记录并限时修复。
+- **Advisory**：建议性检查，允许短期非绿，但必须进入迭代治理。
+
+建议每个项目维护 `docs/CI-HEALTH.md`，显式列出各工作流所属级别、触发条件与负责人。
+
+### 14.2 红叉SLA（24h / 72h / 下个Sprint）
+
+- **Critical 失败**：24 小时内修复或临时禁用并给出替代控制。
+- **Standard 失败**：72 小时内完成修复，或以 Issue 记录并说明计划。
+- **Advisory 失败**：纳入下个 Sprint 的治理 Backlog。
+
+所有失败都应附带：
+1. 根因（Root Cause）
+2. 影响面（Impact）
+3. 修复方案（Fix Plan）
+4. 预防动作（Prevention）
+
+### 14.3 Codex Auto-Fix 管理
+
+`codex-autofix.yml` 默认建议关闭，防止在基线不稳定时放大噪音：
+
+1. **默认禁用**：仅当核心 CI/CD 全绿后再启用。
+2. **受控开关**：通过 `ENABLE_AUTOFIX=true` 显式开启。
+3. **频率限制**：建议 24 小时最多触发 1 次自动修复。
+4. **范围限制**：仅允许修改白名单目录，禁止改动关键配置。
+
+### 14.4 绿率报告
+
+每个 Sprint 结束前输出一次 CI/CD 健康报告，至少包含：
+
+- Critical / Standard / Advisory 各自绿率
+- Top 3 失败工作流与失败次数
+- 平均修复时长（MTTR）
+- 下一 Sprint 治理清单
+
+建议与 DORA 指标联动，观察“绿率提升”是否带来“部署频率与恢复效率”同步改善。
+
+### 14.5 检查项
+
+- [ ] 已建立 `CI-HEALTH.md` 并完成工作流分级。
+- [ ] Critical 工作流保持 100% 绿率。
+- [ ] 红叉均有 Issue 记录与 SLA 标签。
+- [ ] `codex-autofix.yml` 处于受控状态（默认禁用，按开关启用）。
+- [ ] Sprint 评审中已汇报 CI/CD 绿率趋势。

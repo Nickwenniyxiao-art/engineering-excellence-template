@@ -204,6 +204,18 @@ cp .github/workflows/frontend/*.yml .github/workflows/
 
 ---
 
+## 🆕 v2.0 更新内容（2026-03-16）
+
+- 新增 `actionlint` 工作流检查（`.github/workflows/shared/actionlint.yml`）
+- 新增 `docs/templates/CI-HEALTH.md`（CI/CD 健康度标准模板）
+- 新增 `docs/templates/DORA-METRICS-DASHBOARD.md`（DORA 指标仪表板模板）
+- 新增 `docs/standards/DOC-TEMPLATE-STANDARD.md`（文档格式模板标准）
+- 新增 `docs/standards/PROJECT-DOC-ASSESSMENT.md`（新项目文档评估模板）
+- `docs/templates/ENGINEERING-PLAYBOOK.md` 新增第14章“CI/CD健康度管理”
+- 工作流修复同步：`release.yml` / `db-backup.yml` / `cd-staging.yml` / `codex-autofix.yml`
+
+---
+
 ## License
 
 MIT
