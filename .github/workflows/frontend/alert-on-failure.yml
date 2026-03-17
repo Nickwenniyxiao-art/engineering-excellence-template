@@ -1,0 +1,82 @@
+name: CI Alert Notification
+
+on:
+  workflow_run:
+    workflows:
+      - "CD — Staging"
+      - "CD — Production"
+    types: [completed]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  alert-on-failure:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or update alert issue
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const title = `🚨 [CI Alert] ${run.name} failed on ${run.head_branch}`;
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'ci-alert',
+              per_page: 100,
+            });
+            const duplicate = existing.data.find(i => i.title === title);
+            if (duplicate) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: duplicate.number,
+                body: `🔄 再次失败 | [运行日志](${run.html_url}) | ${run.updated_at}`,
+              });
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: `## 🚨 工作流失败告警\n\n| 项目 | 详情 |\n|------|------|\n| 工作流 | **${run.name}** |\n| 分支 | \`${run.head_branch}\` |\n| 日志 | [查看](${run.html_url}) |\n\n> 自动创建，恢复后自动关闭。`,
+              labels: ['ci-alert'],
+            });
+
+  auto-close-on-recovery:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close resolved alert issues
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const title = `🚨 [CI Alert] ${run.name} failed on ${run.head_branch}`;
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'ci-alert',
+              per_page: 100,
+            });
+            for (const issue of issues.data) {
+              if (issue.title === title) {
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed',
+                });
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `✅ 工作流已恢复 | [成功运行](${run.html_url})`,
+                });
+              }
+            }

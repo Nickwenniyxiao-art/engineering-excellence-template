@@ -204,6 +204,15 @@ cp .github/workflows/frontend/*.yml .github/workflows/
 
 ---
 
+## 🔧 工作流清单（v3.0 同步）
+
+- `pr-compliance-gate.yml` — PR 合规性统一检查门禁（整合了 issue approved、labels、linked issue、metadata、project board、ROADMAP ref、bug postmortem、title、EGP compliance 检查）
+- `alert-on-failure.yml` — CI/CD 失败自动创建告警 Issue，恢复后自动关闭
+- `security-scan.yml` — 安全扫描整合（Semgrep + Gitleaks + Trivy + dependency audit）
+- `cd-staging.yml`（backend/frontend）— promote 环节改为创建 PR（`staging -> main`），等待 Owner 审批后合并触发 production 发布
+
+---
+
 ## 🆕 v2.0 更新内容（2026-03-16）
 
 - 新增 `actionlint` 工作流检查（`.github/workflows/shared/actionlint.yml`）
