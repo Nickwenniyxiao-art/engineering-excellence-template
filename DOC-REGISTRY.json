@@ -1,6 +1,6 @@
 {
   "project": "nordhjem-medusa-backend",
-  "assessed_date": "2026-03-15",
+  "assessed_date": "2026-03-17",
   "assessed_by": "Owner",
   "project_type": [
     "web",
@@ -823,6 +823,55 @@
       "status": "template",
       "gate": 1,
       "required": true
+    },
+    {
+      "id": "UNIT-TEST-CONFIG",
+      "file": "jest.config.ts",
+      "required": false,
+      "gate": 2,
+      "status": "exists"
+    },
+    {
+      "id": "DORA-REPORT",
+      "file": "docs/DORA-REPORT.md",
+      "required": false,
+      "gate": 4,
+      "status": "exists"
+    },
+    {
+      "id": "DEVEX-SURVEY",
+      "file": "docs/DEVEX-SURVEY.md",
+      "required": false,
+      "gate": 4,
+      "status": "exists"
+    },
+    {
+      "id": "DEPLOY-LOG",
+      "file": "docs/DEPLOY-LOG.md",
+      "required": false,
+      "gate": 3,
+      "status": "exists"
+    },
+    {
+      "id": "UPTIME-KUMA-SETUP",
+      "file": "docs/UPTIME-KUMA-SETUP.md",
+      "required": false,
+      "gate": 3,
+      "status": "exists"
+    },
+    {
+      "id": "POSTMORTEM-DIR",
+      "file": "docs/postmortem/.gitkeep",
+      "required": false,
+      "gate": 3,
+      "status": "exists"
+    },
+    {
+      "id": "EXAMPLE-UNIT-TEST",
+      "file": "src/__tests__/example.unit.test.ts",
+      "required": false,
+      "gate": 2,
+      "status": "exists"
     }
   ]
 }

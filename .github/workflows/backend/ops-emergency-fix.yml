@@ -9,7 +9,11 @@ on:
         type: choice
         options:
           - rollback-test
-          - fix-health-check
+          - restart-medusa
+          - restart-postgres
+          - restart-redis
+          - clean-disk
+          - collect-logs
         default: rollback-test
 
 permissions:
@@ -17,11 +21,11 @@ permissions:
 
 jobs:
   emergency-fix:
-    name: "Emergency fix"
+    name: Emergency fix
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: SSH fix
+      - name: SSH emergency action
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -29,76 +33,40 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           command_timeout: 12m
           script: |
-            set -uo pipefail
+            set -euo pipefail
+            ACTION="${{ github.event.inputs.action }}"
 
-            echo "============================================"
-            echo "🔧 回滚 test 到 staging 同版本镜像"
-            echo "============================================"
-            
-            echo ""
-            echo "=== 获取 staging 的镜像 ID ==="
-            STAGING_IMAGE_ID=$(docker inspect nordhjem_medusa_staging --format '{{.Image}}')
-            echo "Staging image ID: $STAGING_IMAGE_ID"
-            
-            echo ""
-            echo "=== 保存 test 环境变量 ==="
-            ENV_FILE="/tmp/test_env_rollback.txt"
-            docker inspect nordhjem_medusa_test --format '{{range .Config.Env}}{{println .}}{{end}}' > $ENV_FILE
-            echo "环境变量数量: $(wc -l < $ENV_FILE)"
-            
-            echo ""
-            echo "=== 停止并删除 test 容器 ==="
-            docker stop nordhjem_medusa_test 2>/dev/null || true
-            docker rm nordhjem_medusa_test 2>/dev/null || true
-            
-            echo ""
-            echo "=== 用 staging 镜像 ID 创建 test（先连网络）==="
-            docker create \
-              --name nordhjem_medusa_test \
-              --publish 9001:9000 \
-              --restart unless-stopped \
-              --env-file $ENV_FILE \
-              --network nordhjem_backend \
-              $STAGING_IMAGE_ID npx medusa start
-            
-            docker network connect nordhjem_frontend nordhjem_medusa_test 2>/dev/null || true
-            
-            echo ""
-            echo "=== 启动 test 容器 ==="
-            docker start nordhjem_medusa_test
-            echo "等待 60 秒..."
-            sleep 60
-            
-            echo ""
-            echo "=== 健康检查 ==="
-            for ATTEMPT in 1 2 3 4 5 6; do
-              STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:9001/health 2>/dev/null || echo "000")
-              if [ "$STATUS" = "200" ]; then
-                echo "✅ Port 9001: HTTP 200 — 修复成功！"
-                BODY=$(curl -sf http://localhost:9001/health 2>/dev/null)
-                echo "响应: $BODY"
-                break
-              fi
-              echo "Attempt $ATTEMPT: HTTP $STATUS, waiting 15s..."
-              if [ "$ATTEMPT" = "6" ]; then
-                echo "❌ 仍然失败"
-                BODY=$(curl -s http://localhost:9001/health 2>/dev/null || echo "无响应")
-                echo "Health 响应: $BODY"
-                docker logs nordhjem_medusa_test --tail 20 2>&1
-              fi
-              sleep 15
-            done
-            
-            echo ""
-            echo "=== 全部端口最终状态 ==="
-            for P in 9001 9002; do
+            echo "Action: $ACTION"
+
+            case "$ACTION" in
+              rollback-test)
+                docker restart <PROJECT>_medusa_test || true
+                ;;
+              restart-medusa)
+                docker restart <PROJECT>_medusa || true
+                ;;
+              restart-postgres)
+                docker restart <PROJECT>_postgres || true
+                ;;
+              restart-redis)
+                docker restart <PROJECT>_redis || true
+                ;;
+              clean-disk)
+                docker system prune -af || true
+                ;;
+              collect-logs)
+                docker logs <PROJECT>_medusa --tail 200 || true
+                docker logs <PROJECT>_postgres --tail 200 || true
+                docker logs <PROJECT>_redis --tail 200 || true
+                ;;
+              *)
+                echo "Unknown action: $ACTION"
+                exit 1
+                ;;
+            esac
+
+            echo "=== health snapshot ==="
+            for P in 9000 9001 9002; do
               S=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:$P/health 2>/dev/null || echo "000")
-              echo "Port $P: HTTP $S"
+              echo "Port $P => HTTP $S"
             done
-            
-            rm -f $ENV_FILE
-            
-            echo ""
-            echo "============================================"
-            echo "🏁 完成"
-            echo "============================================"

@@ -204,7 +204,7 @@ cp .github/workflows/frontend/*.yml .github/workflows/
 
 ---
 
-## 🔧 工作流清单（v3.0 同步）
+## 🔧 工作流清单（v4.0 同步）
 
 - `pr-compliance-gate.yml` — PR 合规性统一检查门禁（整合了 issue approved、labels、linked issue、metadata、project board、ROADMAP ref、bug postmortem、title、EGP compliance 检查）
 - `alert-on-failure.yml` — CI/CD 失败自动创建告警 Issue，恢复后自动关闭
@@ -212,6 +212,19 @@ cp .github/workflows/frontend/*.yml .github/workflows/
 - `cd-staging.yml`（backend/frontend）— promote 环节改为创建 PR（`staging -> main`），等待 Owner 审批后合并触发 production 发布
 
 ---
+
+
+## v4.0 变更（四支柱补强）
+
+- 新增：Jest 单元测试配置和示例
+- 新增：RUNBOOK.md 运维应急手册
+- 新增：INCIDENT-RESPONSE.md 事件响应流程
+- 新增：DORA-REPORT.md 自动度量报告
+- 新增：DEVEX-SURVEY.md 开发者体验调查
+- 新增：DEPLOY-LOG.md 部署事件日志
+- 增强：dora-metrics.yml 含 Issue 输出 + 质量趋势
+- 增强：ops-emergency-fix.yml 6 个运维操作选项
+- 增强：cd-staging/cd-production 自动记录部署日志
 
 ## 🆕 v2.0 更新内容（2026-03-16）
 
