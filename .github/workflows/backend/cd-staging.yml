@@ -180,7 +180,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.BOT_PAT }}
@@ -198,6 +198,6 @@ jobs:
               --base main \
               --head staging \
               --title "release: promote staging to production" \
-              --body "Automated promote PR. Staging deploy + E2E + smoke-test all passed. Merge to trigger cd-production."
+              --body "Automated promote PR. Merge to trigger cd-production."
             echo "Promote PR created"
           fi
