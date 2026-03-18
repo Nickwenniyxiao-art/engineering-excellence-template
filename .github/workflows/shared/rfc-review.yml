@@ -1,0 +1,178 @@
+name: RFC Review Gate
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    branches: [develop, staging]
+    paths:
+      - 'docs/RFC-*.md'
+      - 'docs/rfcs/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  rfc-format-check:
+    name: RFC Format Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check RFC document structure
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+
+            // Find RFC files changed in this PR
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100
+            });
+
+            const rfcFiles = files.filter(f =>
+              f.filename.match(/docs\/RFC-\d+.*\.md/) ||
+              f.filename.match(/docs\/rfcs\/.*\.md/)
+            );
+
+            if (rfcFiles.length === 0) {
+              console.log('No RFC files changed — skipping RFC validation');
+              return;
+            }
+
+            const requiredSections = [
+              '## 摘要',
+              '## 背景与动机',
+              '## 详细设计',
+              '## 取舍分析',
+              '## 影响范围',
+              '## 实施计划'
+            ];
+
+            const errors = [];
+            for (const file of rfcFiles) {
+              if (file.status === 'removed') continue;
+              let content;
+              try {
+                content = fs.readFileSync(file.filename, 'utf8');
+              } catch (e) {
+                errors.push(`无法读取 ${file.filename}`);
+                continue;
+              }
+
+              const missing = requiredSections.filter(s => !content.includes(s));
+              if (missing.length > 0) {
+                errors.push(`${file.filename} 缺少以下章节：\n${missing.map(s => `  - ${s}`).join('\n')}`);
+              }
+
+              // Check status header
+              if (!content.match(/状态:\s*(Draft|Under Review|Approved|Rejected|Superseded)/)) {
+                errors.push(`${file.filename} 缺少有效的状态声明（Draft / Under Review / Approved / Rejected / Superseded）`);
+              }
+            }
+
+            if (errors.length > 0) {
+              core.setFailed(
+                `❌ RFC 格式校验失败：\n\n${errors.join('\n\n')}\n\n` +
+                `请参考 docs/templates/RFC.md 模板补全内容。`
+              );
+            } else {
+              console.log(`✅ RFC 格式校验通过（${rfcFiles.length} 个文件）`);
+            }
+
+  rfc-approval-check:
+    name: RFC Approval Status
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    # Only run for PRs that implement features referenced by an RFC
+    if: contains(github.event.pull_request.labels.*.name, 'rfc-required')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check RFC is approved before implementation
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const prBody = context.payload.pull_request.body || '';
+
+            // Look for RFC reference in PR body: RFC-001, RFC #001, etc.
+            const rfcPattern = /RFC[-\s#]+(\d+)/gi;
+            const matches = [...prBody.matchAll(rfcPattern)];
+
+            if (matches.length === 0) {
+              core.setFailed(
+                '❌ 此 PR 标记为 rfc-required，但 PR body 中未引用任何 RFC。\n' +
+                '格式：Implements RFC-001 或 Related RFC: #001'
+              );
+              return;
+            }
+
+            for (const match of matches) {
+              const rfcNum = match[1].padStart(3, '0');
+              const rfcPath = `docs/RFC-${rfcNum}.md`;
+
+              let content;
+              try {
+                content = fs.readFileSync(rfcPath, 'utf8');
+              } catch (e) {
+                core.setFailed(`❌ 找不到 RFC 文件：${rfcPath}。请先创建 RFC 文档。`);
+                return;
+              }
+
+              if (!content.includes('状态: Approved')) {
+                core.setFailed(
+                  `❌ RFC-${rfcNum} 状态不是 Approved，不能进入代码实现阶段。\n` +
+                  `当前状态请检查 ${rfcPath} 的状态声明。\n` +
+                  `必须先完成 RFC 评审并获得 Owner 批准。`
+                );
+                return;
+              }
+
+              console.log(`✅ RFC-${rfcNum} 已批准，可以进入实现阶段`);
+            }
+
+  post-rfc-comment:
+    name: Post RFC Review Comment
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    if: github.event.action == 'opened' && contains(github.event.pull_request.labels.*.name, 'type:rfc')
+    steps:
+      - name: Comment RFC review checklist
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `## RFC 评审清单
+
+            感谢提交此 RFC！请确认以下评审要点：
+
+            ### Owner 评审
+            - [ ] 问题陈述是否清晰？背景动机是否充分？
+            - [ ] 推荐方案是否合理？备选方案是否充分考虑？
+            - [ ] 影响范围评估是否完整？
+            - [ ] 实施计划是否可执行？
+            - [ ] 是否有未识别的风险？
+
+            ### 技术评审要点
+            - [ ] 与现有架构的一致性
+            - [ ] 性能和可扩展性考虑
+            - [ ] 安全性影响
+            - [ ] 可观测性设计
+
+            **批准方式**：在此 PR 上点击 "Approve" 即视为 RFC 获得批准。
+            批准后，请将 RFC 文档中的状态改为 \`Approved\`，再提交实现 PR。
+
+            > 自动生成于 RFC Review Gate`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body
+            });

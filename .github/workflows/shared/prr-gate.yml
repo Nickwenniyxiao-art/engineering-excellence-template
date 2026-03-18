@@ -1,0 +1,142 @@
+name: PRR Production Readiness Gate
+
+# Triggered when a PR targets staging → main (production promote PR)
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, review_requested]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  prr-checklist-check:
+    name: PRR Checklist Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify PRR document exists and is complete
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const prBody = context.payload.pull_request.body || '';
+            const prTitle = context.payload.pull_request.title || '';
+
+            // Extract module name from PR title or body
+            // Convention: "chore: promote <module> to production" or PRR: <module>
+            const moduleMatch = prTitle.match(/promote\s+(\S+)|PRR[:\s]+(\S+)/i) ||
+                                prBody.match(/模块[:\s：]+(\S+)|Module[:\s]+(\S+)/i);
+
+            // Look for PRR file reference in PR body
+            const prrRefMatch = prBody.match(/PRR[:\s]+([^\s\n]+\.md)/i);
+            let prrContent = '';
+
+            if (prrRefMatch) {
+              try {
+                prrContent = fs.readFileSync(prrRefMatch[1], 'utf8');
+              } catch (e) {
+                // PRR file referenced but not found
+              }
+            }
+
+            // Check if all checklist items are checked
+            const requiredChecks = [
+              '功能与 FEATURE-LIST 中的定义一致',
+              '所有验收标准已通过测试',
+              'Sentry 错误监控已配置',
+              '单元测试通过',
+              'E2E 测试通过',
+              'Runbook 已更新',
+              '回滚方案已记录并测试',
+              '模块设计文档已更新',
+              'CHANGELOG 已更新',
+              'DOC-REGISTRY 已更新'
+            ];
+
+            const warnings = [];
+            const errors = [];
+
+            if (!prrContent && !prBody.includes('PRR') && !prBody.includes('生产就绪')) {
+              warnings.push('PR body 中未找到 PRR 文档引用。建议附上 PRR 检查单路径或将检查单内容粘贴到 PR body 中。');
+            }
+
+            if (prrContent) {
+              // Check for unchecked items (- [ ] pattern)
+              const uncheckedItems = (prrContent.match(/- \[ \]/g) || []).length;
+              if (uncheckedItems > 0) {
+                errors.push(`PRR 检查单中仍有 ${uncheckedItems} 项未完成。所有检查项必须勾选后才能发布生产。`);
+              }
+            }
+
+            // Post summary comment
+            const status = errors.length > 0 ? '❌ 未通过' : warnings.length > 0 ? '⚠️ 警告' : '✅ 通过';
+            const comment = [
+              `## PRR 生产就绪评审 — ${status}`,
+              '',
+              '### 检查结果',
+              errors.length > 0 ? `**错误（必须修复）**：\n${errors.map(e => `- ${e}`).join('\n')}` : '**无阻断错误** ✅',
+              warnings.length > 0 ? `\n**警告（建议处理）**：\n${warnings.map(w => `- ${w}`).join('\n')}` : '',
+              '',
+              '### PRR 标准检查项',
+              requiredChecks.map(c => `- [ ] ${c}`).join('\n'),
+              '',
+              '> Owner 点击 "Approve" 此 PR 即视为批准生产发布。',
+              '> 自动生成于 PRR Gate'
+            ].filter(Boolean).join('\n');
+
+            // Only comment on first open
+            if (context.payload.action === 'opened') {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: comment
+              });
+            }
+
+            if (errors.length > 0) {
+              core.setFailed(`❌ PRR 未通过：\n${errors.join('\n')}`);
+            } else if (warnings.length > 0) {
+              core.warning(`⚠️ PRR 警告：\n${warnings.join('\n')}`);
+            } else {
+              console.log('✅ PRR 检查通过');
+            }
+
+  prr-test-gate:
+    name: PRR Test Coverage Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check staging CI passed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Verify that the source branch (staging) has passed all required checks
+            const { data: checks } = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.payload.pull_request.head.sha,
+              per_page: 50
+            });
+
+            const criticalChecks = ['CI', 'Build', 'Test', 'Security'];
+            const failed = checks.check_runs.filter(c =>
+              criticalChecks.some(name => c.name.includes(name)) &&
+              c.conclusion === 'failure'
+            );
+
+            if (failed.length > 0) {
+              core.setFailed(
+                `❌ PRR 阻断：以下关键 CI 检查未通过，不能发布生产：\n` +
+                failed.map(c => `  - ${c.name}: ${c.conclusion}`).join('\n')
+              );
+            } else {
+              console.log('✅ 所有关键 CI 检查均已通过');
+            }

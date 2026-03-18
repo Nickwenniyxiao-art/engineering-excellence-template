@@ -1,13 +1,13 @@
 # 🏗️ 卓越工程治理框架 — 项目模板
 
-> Engineering Excellence Framework Template v1.0
+> Engineering Excellence Framework Template v5.0
 
 ## 概述
 
 这是一个**开箱即用的项目模板**，包含完整的工程治理框架体系。新项目直接使用此模板创建仓库，即可获得：
 
-- ✅ **110 种标准文档模板**（18 个类别）
-- ✅ **58+ 个自动化工作流**（CI/CD、质量门禁、安全扫描、文档检查）
+- ✅ **127 种标准文档模板**（18 个类别）
+- ✅ **71+ 个自动化工作流**（CI/CD、质量门禁、安全扫描、文档检查）
 - ✅ **Issue / PR 模板**（Bug、Feature、Task、Incident 等 7 种）
 - ✅ **分支保护策略**（develop → staging → main 三分支）
 - ✅ **安全扫描工具**（Gitleaks、Trivy、Semgrep、Dependabot）
@@ -97,14 +97,15 @@ cp .github/workflows/frontend/*.yml .github/workflows/
 │   │   ├── research.yml              #   研究
 │   │   └── config.yml                #   模板配置
 │   └── workflows/
-│       ├── shared/                   # 通用工作流（29个）
+│       ├── shared/                   # 通用工作流（39个）
 │       ├── backend/                  # 后端工作流（20个）
 │       └── frontend/                 # 前端工作流（9个）
 │
 ├── docs/
 │   ├── standards/
-│   │   └── DOC-LIBRARY.json          # 文档类型库（18类110种）
-│   ├── templates/                    # 所有文档模板（112个）
+│   │   └── DOC-LIBRARY.json          # 文档类型库（18类125种）
+│   ├── TEST-REGISTRY.json            # 测试注册表（测试与功能/Bug 映射）
+│   ├── templates/                    # 所有文档模板（124个）
 │   │   ├── 01-initiation/            #   项目启动
 │   │   ├── 02-requirements/          #   需求管理
 │   │   ├── ...                       #   （18个类别目录）
@@ -204,15 +205,63 @@ cp .github/workflows/frontend/*.yml .github/workflows/
 
 ---
 
-## 🔧 工作流清单（v4.0 同步）
+## 🔧 工作流清单（v5.0 同步）
 
 - `pr-compliance-gate.yml` — PR 合规性统一检查门禁（整合了 issue approved、labels、linked issue、metadata、project board、ROADMAP ref、bug postmortem、title、EGP compliance 检查）
-- `alert-on-failure.yml` — CI/CD 失败自动创建告警 Issue，恢复后自动关闭
+- `alert-on-failure.yml` — CI/CD 失败自动创建告警 Issue（前端和后端均适用）
+- `check-scope.yml` — 范围校验：PR 变更模块必须在 FEATURE-LIST.md 中存在
+- `check-change-request.yml` — 变更管理校验：设计变更 PR 必须引用已 approved 的变更 Issue
+- `check-test-coverage.yml` — 回归测试强制：Bug 修复 PR 必须包含测试文件
+- `doc-gate-check.yml` — 文档门禁（blocking 模式）：文档不完整时物理阻断 PR merge
 - `security-scan.yml` — 安全扫描整合（Semgrep + Gitleaks + Trivy + dependency audit）
 - `cd-staging.yml`（backend/frontend）— promote 环节改为创建 PR（`staging -> main`），等待 Owner 审批后合并触发 production 发布
 
 ---
 
+## 🆕 v5.0 变更（AI 原生开发体系升级）
+
+### 新增 CI 工作流
+
+| 工作流 | 用途 |
+|--------|------|
+| `check-scope.yml` | 验证 PR 变更模块均在 FEATURE-LIST.md 中 |
+| `check-change-request.yml` | 要求 change-request PR 引用已批准的变更 Issue |
+| `check-test-coverage.yml` | Bug 修复 PR 必须附带回归测试 |
+| `alert-on-failure.yml` | CI/CD 失败自动创建 GitHub Issue 告警 |
+| `rfc-review.yml` | RFC 格式校验 + Approved 状态检查，发布评审 Checklist |
+| `prr-gate.yml` | PRR 生产就绪评审门禁，promote PR 到 main 时触发 |
+| `error-budget-check.yml` | Error Budget 监控，Budget 耗尽时物理阻断功能开发 PR |
+| `ai-interview-protocol.yml` | 根据 Phase 标签自动向 Owner 发布标准提问清单 |
+
+### Doc Gate 升级为 blocking 模式
+
+`doc-gate-check.yml` 从 `warning` 升级为 `blocking`：文档不完整时 CI 物理阻断 PR merge，不再只是警告。
+
+### 新增文档模板
+
+| 模板 | 用途 |
+|------|------|
+| `RFC.md` | 重大技术决策的 RFC 提案流程 |
+| `PRR.md` | 生产就绪评审，Owner approve 即视为批准发布 |
+| `CHANGE-REQUEST.md` | 需求/设计变更的正式申请，必须先批准再写代码 |
+| `TEST-REGISTRY.md` | TEST-REGISTRY.json 的 schema 说明 |
+| `AI-INTERVIEW-PROTOCOL.md` | AI 各阶段标准提问清单，引导 Owner 完成文档 |
+| `LOG-FORMAT-STANDARD.md` | 结构化日志格式规范，AI 从日志中提取测试场景 |
+| `AI-CONTEXT.md` | AI 上下文包模板，Agent 启动时必读，含项目状态快照 |
+| `AI-DECISION-LOG.md` | AI 技术决策审计日志，记录备选方案和 Owner 确认 |
+| `ERROR-BUDGET.md` | Error Budget 模板，SLO 目标 + 耗尽时开发暂停规则 |
+
+### 自演进测试体系
+
+- 新增 `docs/TEST-REGISTRY.json` — 记录所有测试与功能/Bug 的映射关系
+- AI 在以下场景自动生成测试：新功能 merge、Bug 关闭、Sentry 新错误、每周定期扫描
+- `check-test-coverage.yml` 强制 Bug 修复 PR 附带回归测试
+
+### AI 面试协议
+
+`AI-INTERVIEW-PROTOCOL.md` 定义了 AI 在各阶段（立项/需求/设计/开发前）向 Owner 主动提问的标准问题清单，Owner 用自然语言回答，AI 整理成对应文档格式。
+
+---
 
 ## v4.0 变更（四支柱补强）
 

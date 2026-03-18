@@ -1,0 +1,274 @@
+name: AI Interview Protocol
+
+# Triggered when a new Issue is created with specific phase labels,
+# prompting AI to post the standard question checklist as a comment.
+on:
+  issues:
+    types: [opened, labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to post interview questions to'
+        required: true
+      phase:
+        description: 'Phase to use (phase0 / phase1 / phase2 / change)'
+        required: true
+        default: 'phase0'
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  post-phase0-questions:
+    name: Phase 0 — Initiation Questions
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    if: |
+      github.event_name == 'issues' &&
+      (contains(github.event.issue.labels.*.name, 'phase:initiation') ||
+       contains(github.event.issue.labels.*.name, 'phase:0'))
+    steps:
+      - name: Post Phase 0 interview questions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `## AI 提问协议 — Phase 0：立项
+
+            你好！作为 AI 主导的开发助手，在开始任何工作前，我需要先了解项目背景。
+            请逐一回答以下问题（用自然语言即可，我会整理成标准文档格式）：
+
+            ---
+
+            **Q1. 这个项目要解决什么问题？**
+            > 当前的痛点是什么？为什么现有方案不够好？
+
+            **Q2. 目标用户是谁？**
+            > 主要用户群体、规模估计、核心使用场景？
+
+            **Q3. 项目成功的标准是什么？**
+            > 如何衡量项目是否成功？有哪些可量化的指标？
+
+            **Q4. 时间预期和资源约束？**
+            > 期望什么时候上线？团队规模？预算限制？
+
+            **Q5. 有哪些已知风险或限制？**
+            > 技术风险、商业风险、合规要求？
+
+            **Q6. 和现有系统的关系？**
+            > 是全新项目还是替换现有系统？需要哪些集成？
+
+            ---
+
+            > 根据你的回答，我将生成以下文档：
+            > - \`docs/PROJECT-SCOPE.md\` — 项目范围
+            > - \`docs/STAKEHOLDER-REGISTER.md\` — 干系人清单
+            > - \`docs/FEASIBILITY-STUDY.md\` — 可行性分析
+            >
+            > 文档完成并经 Owner approve 后，进入 Phase 1（需求阶段）。
+            >
+            > *自动发布于 AI Interview Protocol*`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body
+            });
+
+  post-phase1-questions:
+    name: Phase 1 — Requirements Questions
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    if: |
+      github.event_name == 'issues' &&
+      (contains(github.event.issue.labels.*.name, 'phase:requirements') ||
+       contains(github.event.issue.labels.*.name, 'phase:1'))
+    steps:
+      - name: Post Phase 1 interview questions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `## AI 提问协议 — Phase 1：需求澄清
+
+            项目立项已完成，现在进入需求收集阶段。请回答以下问题：
+
+            ---
+
+            **Q1. 核心功能有哪些？请按优先级排序**
+            > 哪些是 P0（必须有）？哪些是 P1（应该有）？哪些是 P2（可以有）？
+
+            **Q2. 每个核心功能的用户场景**
+            > 用"作为 [用户]，我想要 [功能]，以便 [目的]"的格式描述主要场景
+
+            **Q3. 每个功能的验收标准**
+            > 怎么算"做好了"？有什么具体的测试场景？
+
+            **Q4. 明确不做什么（Scope Exclusions）**
+            > 有哪些功能是明确排除在本期范围外的？
+
+            **Q5. 用户界面有什么特殊要求？**
+            > 有设计稿吗？有品牌规范吗？无障碍要求？多语言支持？
+
+            **Q6. 数据需求**
+            > 需要处理什么数据？数据量级？保留多久？
+
+            ---
+
+            > 根据你的回答，我将生成：
+            > - \`docs/PRD.md\` — 产品需求文档
+            > - \`docs/FEATURE-LIST.md\` — 功能清单（这是 CI 范围校验的基础）
+            > - \`docs/USER-STORIES.md\` — 用户故事
+            > - \`docs/ACCEPTANCE-CRITERIA.md\` — 验收标准
+            >
+            > *自动发布于 AI Interview Protocol*`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body
+            });
+
+  post-phase2-questions:
+    name: Phase 2 — Design Questions
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    if: |
+      github.event_name == 'issues' &&
+      (contains(github.event.issue.labels.*.name, 'phase:design') ||
+       contains(github.event.issue.labels.*.name, 'phase:2'))
+    steps:
+      - name: Post Phase 2 interview questions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `## AI 提问协议 — Phase 2：设计决策
+
+            需求已明确，现在进入技术设计阶段。在我提出架构方案前，需要了解约束条件：
+
+            ---
+
+            **Q1. 技术栈有偏好或约束吗？**
+            > 团队熟悉哪些技术？有什么不能用的（许可证、成本、运维能力）？
+
+            **Q2. 性能要求**
+            > 预期并发用户数？关键接口的响应时间要求？SLA 要求？
+
+            **Q3. 数据安全和隐私要求**
+            > 涉及 PII？需要加密？合规要求（GDPR、SOC2 等）？数据驻留要求？
+
+            **Q4. 需要支持哪些平台/环境？**
+            > Web 浏览器版本？移动端？特定操作系统？离线支持？
+
+            **Q5. 未来 1-2 年的扩展方向**
+            > 预计用户增长曲线？需要支持多租户？国际化计划？
+
+            **Q6. 集成要求**
+            > 需要对接哪些第三方系统？有哪些现有 API 必须兼容？
+
+            ---
+
+            > 根据你的回答，我将生成：
+            > - \`docs/ARCHITECTURE.md\` — 系统架构设计
+            > - \`docs/ADR/ADR-001.md\` — 首批架构决策记录
+            > - \`docs/AI-DECISION-LOG.md\` — AI 决策日志（技术选型）
+            > - RFC 草稿（如有重大决策）
+            >
+            > *自动发布于 AI Interview Protocol*`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body
+            });
+
+  post-change-questions:
+    name: Change Request — Impact Questions
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    if: |
+      github.event_name == 'issues' &&
+      (contains(github.event.issue.labels.*.name, 'type:change-request') ||
+       contains(github.event.issue.labels.*.name, 'change-request'))
+    steps:
+      - name: Post change request interview questions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `## AI 提问协议 — 变更申请评估
+
+            收到变更申请。在进行任何代码修改前，我需要完成影响评估。请回答：
+
+            ---
+
+            **Q1. 要变更什么？**
+            > 原来批准的设计是什么？期望变成什么？
+
+            **Q2. 为什么要变更？**
+            > 是外部需求变化、发现设计问题，还是其他原因？
+
+            **Q3. 这个变更影响哪些已有功能？**
+            > 哪些模块会受到影响？是否有 Breaking Change？
+
+            **Q4. 对交付时间的影响？**
+            > 当前哪些任务会被推迟？推迟多少？
+
+            **Q5. 有备选方案吗？**
+            > 是否有影响更小的方式达到同样目的？
+
+            **Q6. 确认要走完整变更流程吗？**
+            > 变更流程：AI 提交影响评估 → Owner approve → 文档更新 → 代码才能动
+
+            ---
+
+            > 根据你的回答，我将生成：
+            > - \`docs/CHANGE-REQUEST.md\` 更新（包含完整影响评估）
+            > - 更新 FEATURE-LIST 和相关文档清单
+            >
+            > **请注意**：在 Owner approve 此 Issue 之前，任何相关代码变更都会被 \`check-change-request.yml\` 阻断。
+            >
+            > *自动发布于 AI Interview Protocol*`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body
+            });
+
+  post-manual-questions:
+    name: Manual Interview Trigger
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Post phase-specific questions to issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = parseInt('${{ github.event.inputs.issue_number }}');
+            const phase = '${{ github.event.inputs.phase }}';
+
+            const phaseLabels = {
+              phase0: 'phase:initiation',
+              phase1: 'phase:requirements',
+              phase2: 'phase:design',
+              change: 'type:change-request'
+            };
+
+            const label = phaseLabels[phase];
+            if (label) {
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  labels: [label]
+                });
+                console.log(`已为 Issue #${issueNumber} 添加标签 ${label}，提问将自动发布`);
+              } catch (e) {
+                console.log(`无法添加标签：${e.message}`);
+              }
+            }

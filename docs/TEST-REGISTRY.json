@@ -1,0 +1,7 @@
+{
+  "$schema": "./schemas/test-registry.schema.json",
+  "version": "1.0.0",
+  "last_updated": "2026-03-18T00:00:00Z",
+  "description": "测试注册表 — 记录所有测试脚本与功能/Bug 的映射关系",
+  "tests": []
+}

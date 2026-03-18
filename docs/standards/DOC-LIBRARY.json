@@ -1,7 +1,7 @@
 {
-  "library_version": "1.1.0",
-  "last_updated": "2026-03-17",
-  "total_documents": 119,
+  "library_version": "1.2.0",
+  "last_updated": "2026-03-18",
+  "total_documents": 125,
   "categories": [
     "01-initiation",
     "02-requirements",
@@ -3012,6 +3012,136 @@
       "required_sections": [],
       "required_metadata": [],
       "description": "Self-hosted monitoring setup guide using Uptime Kuma."
+    },
+    {
+      "id": "RFC",
+      "name": "RFC 技术提案",
+      "name_en": "Request for Comments",
+      "filename": "RFC.md",
+      "category": "03-design",
+      "gate": 2,
+      "applicable_to": [
+        "all"
+      ],
+      "default_required": false,
+      "required_sections": [
+        "## 摘要",
+        "## 背景与动机",
+        "## 详细设计",
+        "## 取舍分析",
+        "## 影响范围"
+      ],
+      "required_metadata": [
+        "状态",
+        "作者",
+        "创建日期"
+      ],
+      "description": "技术方案 RFC 模板，用于重大架构或设计决策的提案与评审。"
+    },
+    {
+      "id": "PRR",
+      "name": "生产就绪评审",
+      "name_en": "Production Readiness Review",
+      "filename": "PRR.md",
+      "category": "06-deployment",
+      "gate": 3,
+      "applicable_to": [
+        "all"
+      ],
+      "default_required": false,
+      "required_sections": [
+        "## 功能就绪",
+        "## 可观测性",
+        "## 测试覆盖",
+        "## 运维准备",
+        "## 文档完整性"
+      ],
+      "required_metadata": [
+        "模块",
+        "评审日期",
+        "负责 AI"
+      ],
+      "description": "生产发布前的就绪评审清单，Owner approve 即视为批准生产发布。"
+    },
+    {
+      "id": "CHANGE-REQUEST",
+      "name": "变更请求",
+      "name_en": "Change Request",
+      "filename": "CHANGE-REQUEST.md",
+      "category": "09-governance",
+      "gate": 2,
+      "applicable_to": [
+        "all"
+      ],
+      "default_required": false,
+      "required_sections": [
+        "## 变更描述",
+        "## 影响评估",
+        "## 论证",
+        "## 实施顺序"
+      ],
+      "required_metadata": [
+        "状态",
+        "提出日期",
+        "变更类型"
+      ],
+      "description": "需求或设计变更的正式申请模板，必须经 Owner 批准后才能开始代码变更。"
+    },
+    {
+      "id": "TEST-REGISTRY",
+      "name": "测试注册表规范",
+      "name_en": "Test Registry Schema Documentation",
+      "filename": "TEST-REGISTRY.md",
+      "category": "05-testing",
+      "gate": 2,
+      "applicable_to": [
+        "all"
+      ],
+      "default_required": false,
+      "required_sections": [
+        "## 结构",
+        "## 触发 AI 生成新测试的场景"
+      ],
+      "required_metadata": [],
+      "description": "TEST-REGISTRY.json 的 schema 说明文档，记录测试脚本与功能/Bug 的映射关系。"
+    },
+    {
+      "id": "AI-INTERVIEW-PROTOCOL",
+      "name": "AI 提问协议",
+      "name_en": "AI Interview Protocol",
+      "filename": "AI-INTERVIEW-PROTOCOL.md",
+      "category": "09-governance",
+      "gate": 1,
+      "applicable_to": [
+        "all"
+      ],
+      "default_required": false,
+      "required_sections": [
+        "## Phase 0: 立项提问",
+        "## Phase 1: 需求提问",
+        "## Phase 2: 设计提问"
+      ],
+      "required_metadata": [],
+      "description": "AI 主导各阶段的标准问题清单，指导 AI 向 Owner 提问并整理成文档。"
+    },
+    {
+      "id": "LOG-FORMAT-STANDARD",
+      "name": "日志格式标准",
+      "name_en": "Log Format Standard",
+      "filename": "LOG-FORMAT-STANDARD.md",
+      "category": "04-development",
+      "gate": 2,
+      "applicable_to": [
+        "all"
+      ],
+      "default_required": false,
+      "required_sections": [
+        "## 结构化日志字段（必须）",
+        "## 日志层级",
+        "## AI 读取日志的优先级"
+      ],
+      "required_metadata": [],
+      "description": "结构化日志格式规范，AI 测试生成系统依赖此格式从日志中提取测试场景。"
     }
   ]
 }

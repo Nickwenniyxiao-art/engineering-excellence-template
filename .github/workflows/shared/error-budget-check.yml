@@ -1,0 +1,183 @@
+name: Error Budget Check
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+    branches: [develop]
+  schedule:
+    # Daily check at 09:00 UTC
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+    inputs:
+      force_update:
+        description: 'Force update error budget status'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  check-error-budget:
+    name: Error Budget Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Skip for scheduled runs on non-PR events in job condition
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read Error Budget status and gate PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const prLabels = context.payload.pull_request.labels.map(l => l.name);
+
+            // PRs with these labels are always allowed through (reliability work)
+            const exemptLabels = ['type:bug-fix', 'type:reliability', 'type:security', 'hotfix', 'no-issue', 'egp-bootstrap'];
+            const isExempt = exemptLabels.some(label => prLabels.includes(label));
+
+            if (isExempt) {
+              console.log(`✅ PR 已豁免 Error Budget 检查（标签：${prLabels.filter(l => exemptLabels.includes(l)).join(', ')}）`);
+              return;
+            }
+
+            // Read ERROR-BUDGET.md to extract current remaining percentage
+            let errorBudgetContent = '';
+            let remainingPct = null;
+
+            try {
+              errorBudgetContent = fs.readFileSync('docs/ERROR-BUDGET.md', 'utf8');
+            } catch (e) {
+              console.log('docs/ERROR-BUDGET.md 不存在 — Error Budget 检查跳过');
+              core.warning('建议创建 docs/ERROR-BUDGET.md 启用 Error Budget 保护');
+              return;
+            }
+
+            // Parse remaining percentage from table
+            // Looks for pattern like: | API 服务 | ... | 45% | 正常 |
+            const pctMatch = errorBudgetContent.match(/剩余.*?(\d+(?:\.\d+)?)\s*%/i);
+            if (pctMatch) {
+              remainingPct = parseFloat(pctMatch[1]);
+            }
+
+            if (remainingPct === null) {
+              console.log('⚠️ 无法从 docs/ERROR-BUDGET.md 解析剩余百分比 — 跳过检查');
+              core.warning('请确保 ERROR-BUDGET.md 中包含形如 "剩余（%）" 的列，值为数字百分比');
+              return;
+            }
+
+            console.log(`当前 Error Budget 剩余：${remainingPct}%`);
+
+            // Determine severity
+            let severity = 'green';
+            if (remainingPct < 5) severity = 'red';
+            else if (remainingPct < 20) severity = 'orange';
+            else if (remainingPct < 50) severity = 'yellow';
+
+            // Add label to PR based on severity
+            const labelMap = {
+              red: 'error-budget-exhausted',
+              orange: 'error-budget-warning',
+              yellow: 'error-budget-low',
+              green: null
+            };
+
+            const targetLabel = labelMap[severity];
+            if (targetLabel) {
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  labels: [targetLabel]
+                });
+              } catch (e) {
+                console.log(`无法添加标签 ${targetLabel}（标签可能不存在，请手动创建）`);
+              }
+            }
+
+            if (severity === 'red') {
+              // Check if owner override is present
+              if (prLabels.includes('override-error-budget')) {
+                core.warning(
+                  `⚠️ Error Budget 已耗尽（剩余 ${remainingPct}%），但 Owner 已手动解除阻断。\n` +
+                  `请在 PR body 中说明解除理由，并在修复后更新 ERROR-BUDGET.md。`
+                );
+                return;
+              }
+
+              core.setFailed(
+                `❌ Error Budget 已耗尽（剩余 ${remainingPct}%）\n\n` +
+                `根据 Error Budget 规则，功能开发 PR 已被物理阻断。\n\n` +
+                `允许的 PR 类型：\n` +
+                `  - type:bug-fix — Bug 修复\n` +
+                `  - type:reliability — 稳定性改进\n` +
+                `  - type:security — 安全修复\n` +
+                `  - hotfix — 紧急热修复\n\n` +
+                `Owner 可通过添加 override-error-budget 标签临时解除阻断（需在 PR body 中说明理由）。\n` +
+                `详情：docs/ERROR-BUDGET.md`
+              );
+            } else if (severity === 'orange') {
+              core.warning(`⚠️ Error Budget 警告：剩余 ${remainingPct}%（< 20%），请优先处理稳定性问题`);
+            } else if (severity === 'yellow') {
+              core.warning(`⚠️ Error Budget 注意：剩余 ${remainingPct}%（< 50%），持续关注`);
+            } else {
+              console.log(`✅ Error Budget 健康：剩余 ${remainingPct}%`);
+            }
+
+  daily-budget-report:
+    name: Daily Error Budget Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate daily Error Budget issue update
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let budgetContent = '';
+            try {
+              budgetContent = fs.readFileSync('docs/ERROR-BUDGET.md', 'utf8');
+            } catch (e) {
+              console.log('ERROR-BUDGET.md 不存在，跳过每日报告');
+              return;
+            }
+
+            // Find or create tracking issue
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'error-budget-tracking',
+              state: 'open',
+              per_page: 1
+            });
+
+            const today = new Date().toISOString().split('T')[0];
+            const body = `## Error Budget 日报 — ${today}\n\n请查看并更新 \`docs/ERROR-BUDGET.md\` 中的当前消耗数据。\n\n自动生成于 Error Budget Check workflow。`;
+
+            if (issues.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues[0].number,
+                body
+              });
+              console.log(`已更新 Error Budget 跟踪 Issue #${issues[0].number}`);
+            } else {
+              const newIssue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `[Error Budget] 滚动 30 天监控跟踪`,
+                body,
+                labels: ['error-budget-tracking']
+              });
+              console.log(`已创建 Error Budget 跟踪 Issue #${newIssue.data.number}`);
+            }

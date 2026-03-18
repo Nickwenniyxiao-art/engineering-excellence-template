@@ -1,7 +1,7 @@
 {
   "$schema": "./schemas/task-registry.schema.json",
-  "version": "1.1.0",
-  "last_updated": "2026-03-16T02:45:49Z",
+  "version": "1.2.0",
+  "last_updated": "2026-03-18T00:00:00Z",
   "projects": [
     {
       "phase": "Phase 0",
@@ -1111,6 +1111,149 @@
             }
           ],
           "priority": "P3"
+        }
+      ]
+    },
+    {
+      "phase": "Phase 5",
+      "name": "v5.0 — AI 原生开发体系升级",
+      "status": "planned",
+      "tasks": [
+        {
+          "id": "R-P5-01",
+          "name": "AI 提问协议 (AI-INTERVIEW-PROTOCOL)",
+          "status": "done",
+          "actions": [
+            {
+              "id": "R-P5-01-A1",
+              "name": "新增 docs/templates/AI-INTERVIEW-PROTOCOL.md",
+              "status": "done",
+              "pr": null,
+              "issue": null,
+              "completed_at": "2026-03-18T00:00:00Z",
+              "notes": "各阶段标准问题清单，AI 向 Owner 主动提问并整理文档"
+            }
+          ],
+          "priority": "P1"
+        },
+        {
+          "id": "R-P5-02",
+          "name": "RFC 技术提案流程",
+          "status": "done",
+          "actions": [
+            {
+              "id": "R-P5-02-A1",
+              "name": "新增 docs/templates/RFC.md",
+              "status": "done",
+              "pr": null,
+              "issue": null,
+              "completed_at": "2026-03-18T00:00:00Z",
+              "notes": "重大架构决策的 RFC 模板"
+            }
+          ],
+          "priority": "P1"
+        },
+        {
+          "id": "R-P5-03",
+          "name": "生产就绪评审 (PRR) 门禁",
+          "status": "done",
+          "actions": [
+            {
+              "id": "R-P5-03-A1",
+              "name": "新增 docs/templates/PRR.md",
+              "status": "done",
+              "pr": null,
+              "issue": null,
+              "completed_at": "2026-03-18T00:00:00Z",
+              "notes": "生产发布前 Owner 审批清单"
+            }
+          ],
+          "priority": "P1"
+        },
+        {
+          "id": "R-P5-04",
+          "name": "变更请求管理流程",
+          "status": "done",
+          "actions": [
+            {
+              "id": "R-P5-04-A1",
+              "name": "新增 docs/templates/CHANGE-REQUEST.md + check-change-request.yml",
+              "status": "done",
+              "pr": null,
+              "issue": null,
+              "completed_at": "2026-03-18T00:00:00Z",
+              "notes": "需求变更必须经 Owner 批准的 CI 门禁"
+            }
+          ],
+          "priority": "P1"
+        },
+        {
+          "id": "R-P5-05",
+          "name": "范围校验 CI 门禁",
+          "status": "done",
+          "actions": [
+            {
+              "id": "R-P5-05-A1",
+              "name": "新增 .github/workflows/shared/check-scope.yml",
+              "status": "done",
+              "pr": null,
+              "issue": null,
+              "completed_at": "2026-03-18T00:00:00Z",
+              "notes": "PR 变更模块必须在 FEATURE-LIST.md 中存在"
+            }
+          ],
+          "priority": "P1"
+        },
+        {
+          "id": "R-P5-06",
+          "name": "自演进测试体系",
+          "status": "done",
+          "actions": [
+            {
+              "id": "R-P5-06-A1",
+              "name": "新增 docs/TEST-REGISTRY.json + docs/templates/TEST-REGISTRY.md + check-test-coverage.yml",
+              "status": "done",
+              "pr": null,
+              "issue": null,
+              "completed_at": "2026-03-18T00:00:00Z",
+              "notes": "Bug 修复 PR 必须附带回归测试，测试注册表跟踪覆盖度"
+            }
+          ],
+          "priority": "P1"
+        },
+        {
+          "id": "R-P5-07",
+          "name": "日志格式标准",
+          "status": "done",
+          "actions": [
+            {
+              "id": "R-P5-07-A1",
+              "name": "新增 docs/templates/LOG-FORMAT-STANDARD.md",
+              "status": "done",
+              "pr": null,
+              "issue": null,
+              "completed_at": "2026-03-18T00:00:00Z",
+              "notes": "结构化日志规范，AI 从日志中提取测试场景"
+            }
+          ],
+          "priority": "P2"
+        },
+        {
+          "id": "R-P5-08",
+          "name": "Doc Gate 升级为 blocking 模式",
+          "status": "done",
+          "actions": [
+            {
+              "id": "R-P5-08-A1",
+              "name": "doc-gate-check.yml: DOC_GATE_MODE warning → blocking",
+              "status": "done",
+              "pr": null,
+              "issue": null,
+              "completed_at": "2026-03-18T00:00:00Z",
+              "notes": "文档不完整时 CI 物理阻断 PR merge"
+            }
+          ],
+          "priority": "P1"
         }
       ]
     }
