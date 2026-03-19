@@ -344,3 +344,132 @@ cat docs/ERROR-BUDGET.md | grep -A5 "当前周期预算"
 # 检查 FEATURE-LIST 模块状态
 grep -A3 "状态" docs/FEATURE-LIST.md
 ```
+
+---
+
+## AI 操作治理协议（所有 AI 必须严格遵守）
+
+> 本章节是框架的执行纪律核心。任何 AI 接手项目，必须将本章节规则内化为默认行为。
+
+### 核心原则：无 Issue，不执行
+
+```
+任何有副作用的操作 = 必须有 GitHub Issue + Owner 明确授权
+```
+
+**"Owner 描述了一个问题"** ≠ 授权执行
+**"CTO/PM 说立即做"** ≠ 授权 AI 执行
+**"紧急情况"** ≠ 可以绕过流程
+
+### 变更分类与对应流程
+
+| 变更类型 | 标准流程 | 最小要求 |
+|---------|---------|---------|
+| 代码变更 | Issue → PR → CI → Owner approve → merge | Issue + PR |
+| 基础设施变更 | Issue → PR → CI → Owner approve → merge → workflow 部署 | Issue + PR + workflow |
+| 配置变更（.env、crontab）| 同基础设施变更 | Issue + PR + workflow |
+| 只读排查（SSH 查看日志）| 口头说明即可 | 告知 Owner 要查什么 |
+| 紧急生产故障 | 告知 → Owner 说可以 → 执行 → 立即记录 | 24h 内补 Issue |
+
+### 有副作用的操作（执行前必须有 Issue + 授权）
+
+- SSH 写操作：写文件、改 crontab、重启容器、修改配置
+- Git 操作：commit、push、merge
+- GitHub 操作：创建/关闭 Issue 和 PR、修改 label
+- 服务器部署：docker pull/up、rsync、scp
+- 数据库：任何写操作或 migration
+- 外部 API：Telegram、第三方服务调用
+
+### AI 执行前的标准话术
+
+```
+我准备执行以下操作，关联 Issue #XXX：
+1. [操作1]
+2. [操作2]
+
+等待你的授权（回复"可以"）。
+```
+
+### VPS 操作铁律
+
+```
+❌ 绝对禁止：AI 直接 SSH 写操作（无论何种理由）
+✅ 唯一允许：通过 GitHub Actions workflow 执行部署
+✅ 只读例外：SSH 查看日志、磁盘、进程（必须告知 Owner）
+```
+
+### ai-decision Issue 规范
+
+每次重要执行后，AI 必须创建 GitHub Issue：
+
+```markdown
+标题：[AI-DECISION] YYYY-MM-DD 操作简述
+Label：ai-decision
+内容：
+- 操作详情（做了什么）
+- 授权依据（Owner 原话/时间）
+- 执行结果
+- 遗留事项
+```
+
+### 如何查看所有 AI 决策记录
+
+```bash
+# 查看所有 AI 决策 Issue
+gh issue list --label ai-decision --state all
+
+# 查看最近 AI 操作
+gh issue list --label ai-decision --limit 10
+```
+
+或在 GitHub 仓库页面：Issues → Label → `ai-decision`
+
+### 禁止行为（违反即为框架违规）
+
+- ❌ 看到"立即做"就直接执行 SSH 操作
+- ❌ 以"紧急"为由跳过 Issue 和 PR
+- ❌ 先执行，后告知 Owner
+- ❌ 执行后不创建 ai-decision Issue
+- ❌ 把意图描述当作执行授权
+- ❌ 直接 push 到 main/staging/develop（受保护分支）
+
+### 违规处理
+
+若 AI 发现自己已经违规执行：
+
+1. **立即停止**进一步操作
+2. **告知 Owner** 已执行了什么
+3. **等待 Owner 决定**是否回滚
+4. **无论是否回滚**，必须补开 ai-decision Issue 记录
+5. 在 Issue 中标注"违规操作，事后补录"
+
+---
+
+## 可观测性：如何查看项目执行状态
+
+### AI 决策审计
+```bash
+gh issue list --label ai-decision --state all --repo <owner>/<repo>
+```
+
+### 部署历史
+```bash
+gh run list --workflow=cd-production.yml
+gh run list --workflow=deploy-ops-scripts.yml
+```
+
+### 当前 PR 状态
+```bash
+gh pr list --state open
+gh pr checks <PR_NUMBER>
+```
+
+### 服务器状态（只读）
+```bash
+# 磁盘
+ssh root@<VPS_IP> "df -h /"
+# 容器
+ssh root@<VPS_IP> "docker ps --format 'table {{.Names}}\t{{.Status}}'"
+# 最近日志
+ssh root@<VPS_IP> "docker logs --tail=50 <container>"
+```
